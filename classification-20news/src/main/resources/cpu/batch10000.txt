@@ -1,0 +1,9 @@
+15:47:10.321 [main] INFO org.deeplearning4j.models.sequencevectors.SequenceVectors - Time spent on training: 9507 ms
+15:47:10.353 [main] INFO com.iromu.dl4j.nlp.ParagraphVectorsClassifierExample - Document '[health]' falls into the following categories:
+15:47:10.358 [main] INFO com.iromu.dl4j.nlp.ParagraphVectorsClassifierExample -         health: 0.3224503993988037
+15:47:10.358 [main] INFO com.iromu.dl4j.nlp.ParagraphVectorsClassifierExample -         science: -0.012840387411415577
+15:47:10.358 [main] INFO com.iromu.dl4j.nlp.ParagraphVectorsClassifierExample -         finance: -0.018714288249611855
+15:47:10.362 [main] INFO com.iromu.dl4j.nlp.ParagraphVectorsClassifierExample - Document '[finance]' falls into the following categories:
+15:47:10.362 [main] INFO com.iromu.dl4j.nlp.ParagraphVectorsClassifierExample -         health: -0.2137034684419632
+15:47:10.362 [main] INFO com.iromu.dl4j.nlp.ParagraphVectorsClassifierExample -         science: -0.0018421098357066512
+15:47:10.362 [main] INFO com.iromu.dl4j.nlp.ParagraphVectorsClassifierExample -         finance: 0.6563339233398438
