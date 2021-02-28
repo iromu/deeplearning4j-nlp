@@ -42,13 +42,15 @@ public class ParseHtml {
                 String html = Files.readString(source);
                 if (html.replaceAll("\r", "").replaceAll("\n", "").trim().isEmpty()) continue;
                 StringBuilder contentBuilder = new StringBuilder();
+                StringBuilder metaBuilder = new StringBuilder();
 
-                Document doc = Jsoup.parse(html);
+                Document doc = Jsoup.parse(html.toLowerCase());
                 String title = doc.title();
                 if (title != null) {
                     if (title.toLowerCase().contains("is for sale")) continue;
                     if (title.toLowerCase().contains("domain name")) continue;
                     contentBuilder.append(title);
+                    metaBuilder.append(title).append("\n");
                 }
 
                 Elements metaTags = doc.getElementsByTag("meta");
@@ -57,11 +59,14 @@ public class ParseHtml {
                     if (metaTag.hasAttr("charset")) continue;
                     if (metaTag.hasAttr("http-equiv")) continue;
                     if ("viewport".equalsIgnoreCase(metaTag.attr("name"))) continue;
-                    String s = metaTag.toString();
-                    log.warn(s);
-                    contentBuilder.append("\n").append(s);
+                    String metaName = metaTag.attr("name");
+                    if (metaName.toLowerCase().contains("description") || metaName.toLowerCase().contains("keywords")) {
+                        log.warn(metaTag.toString());
+                        metaBuilder.append(metaTag.attr("content")).append("\n");
+                    }
+                    contentBuilder.append("\n").append(metaTag.toString());
                 }
-                save(contentBuilder, datasetMetaPath, source);
+                save(metaBuilder, datasetMetaPath, source);
 
                 Element body = doc.body();
                 if (body != null) {
