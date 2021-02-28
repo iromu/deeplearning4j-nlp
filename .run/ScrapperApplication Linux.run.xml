@@ -1,0 +1,14 @@
+<component name="ProjectRunConfigurationManager">
+    <configuration default="false" name="ScrapperApplication Linux" type="SpringBootApplicationConfigurationType"
+                   factoryName="Spring Boot">
+        <module name="website-scrapper"/>
+        <option name="SPRING_BOOT_MAIN_CLASS" value="com.db.cloud.ai.ScrapperApplication"/>
+        <option name="ALTERNATIVE_JRE_PATH"/>
+        <envs>
+            <env name="PATH" value="/mnt/wd3"/>
+        </envs>
+        <method v="2">
+            <option name="Make" enabled="true"/>
+        </method>
+    </configuration>
+</component>

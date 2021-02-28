@@ -9,6 +9,9 @@
     <packaging>pom</packaging>
     <modules>
         <module>classification-20news</module>
+        <module>website-classification</module>
+        <module>website-scrapper</module>
+        <module>dataset-commons</module>
     </modules>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
