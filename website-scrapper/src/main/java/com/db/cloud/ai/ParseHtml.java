@@ -5,31 +5,19 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 @Slf4j
 public class ParseHtml {
-
-    final String regex = "^[\\s\\S]*<head[^\\>]*>([\\s\\S]*)<\\/head>[\\s\\S]*$";
-    final Pattern headPattern = Pattern.compile(regex, Pattern.MULTILINE);
-    final String title = "^[\\s\\S]*(<title[^\\>]*>[\\s\\S]*<\\/title>)[\\s\\S]*$";
-    final String meta = "(<meta.*?>)";
-    final Pattern titlePattern = Pattern.compile(title, Pattern.MULTILINE);
-    final Pattern metaPattern = Pattern.compile(meta, Pattern.MULTILINE);
     public final Path datasetRootPath;
     private final Path datasetOriginalPath;
-    private final Path datasetErrorsPath;
     private final Path datasetParsedPath;
-    private final Path datasetCsvPath;
     private final Path datasetMetaPath;
-    private WebClient webClient;
 
     public ParseHtml() {
         String path = System.getenv("PATH");
@@ -39,8 +27,6 @@ public class ParseHtml {
         datasetOriginalPath = datasetRootPath.resolve("original");
         datasetParsedPath = datasetRootPath.resolve("parsed");
         datasetMetaPath = datasetRootPath.resolve("meta");
-        datasetErrorsPath = datasetRootPath.resolve("errors.txt");
-        datasetCsvPath = datasetRootPath.resolve("URL Classification.csv");
     }
 
     public static void main(String[] args) throws Exception {
