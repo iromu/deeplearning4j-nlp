@@ -5,12 +5,13 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Slf4j
@@ -22,65 +23,66 @@ public class ParseHtml {
     final String meta = "(<meta.*?>)";
     final Pattern titlePattern = Pattern.compile(title, Pattern.MULTILINE);
     final Pattern metaPattern = Pattern.compile(meta, Pattern.MULTILINE);
+    public final Path datasetRootPath;
+    private final Path datasetOriginalPath;
+    private final Path datasetErrorsPath;
+    private final Path datasetParsedPath;
+    private final Path datasetCsvPath;
+    private final Path datasetMetaPath;
+    private WebClient webClient;
+
+    public ParseHtml() {
+        String path = System.getenv("PATH");
+        if (path == null || path.isBlank())
+            path = System.getProperty("user.home");
+        datasetRootPath = Paths.get(path, "datasets", "URL Classification/");
+        datasetOriginalPath = datasetRootPath.resolve("original");
+        datasetParsedPath = datasetRootPath.resolve("parsed");
+        datasetMetaPath = datasetRootPath.resolve("meta");
+        datasetErrorsPath = datasetRootPath.resolve("errors.txt");
+        datasetCsvPath = datasetRootPath.resolve("URL Classification.csv");
+    }
 
     public static void main(String[] args) throws Exception {
         new ParseHtml().run();
     }
 
     private void run() throws IOException {
-        List<Path> dataset = list(Paths.get("dataset"));
+        List<Path> dataset = list(datasetOriginalPath);
 
-        for (Path path : dataset) {
+        for (Path source : dataset) {
             try {
-//                log.info(path.toString());
-                String html = Files.readString(path);
+
+                String html = Files.readString(source);
                 if (html.replaceAll("\r", "").replaceAll("\n", "").trim().isEmpty()) continue;
-                String content = "";
-//                String head = extractHead(html);
-//                if (head != null) {
-//                    content += extractTitle(titlePattern, head);
-//                    content += "\n" + String.join("\n", extractMeta(metaPattern, head));
-//                }
+                StringBuilder contentBuilder = new StringBuilder();
 
                 Document doc = Jsoup.parse(html);
                 String title = doc.title();
                 if (title != null) {
                     if (title.toLowerCase().contains("is for sale")) continue;
                     if (title.toLowerCase().contains("domain name")) continue;
-                    content += title;
+                    contentBuilder.append(title);
                 }
 
                 Elements metaTags = doc.getElementsByTag("meta");
 
                 for (Element metaTag : metaTags) {
-//                    String content = metaTag.attr("content");
-//                    String name = metaTag.attr("name");
                     if (metaTag.hasAttr("charset")) continue;
                     if (metaTag.hasAttr("http-equiv")) continue;
                     if ("viewport".equalsIgnoreCase(metaTag.attr("name"))) continue;
                     String s = metaTag.toString();
                     log.warn(s);
-                    content += "\n" + s;
+                    contentBuilder.append("\n").append(s);
                 }
+                save(contentBuilder, datasetMetaPath, source);
 
                 Element body = doc.body();
                 if (body != null) {
                     String text = body.text();
-                    content += "\n" + text;
+                    contentBuilder.append("\n").append(text);
                 }
-
-                if (!content.isBlank()
-                        && !content.toLowerCase().contains("domain name")
-                        && !content.toLowerCase().contains("is for sale")
-                        && !content.replaceAll("\r", "").replaceAll("\n", "").trim().isEmpty()
-                ) {
-                    Files.createDirectories(Paths.get("parsed", path.getParent().toString()));
-                    Files.write(
-                            Paths.get("parsed", path.toString()),
-                            (content).getBytes(),
-                            StandardOpenOption.CREATE,
-                            StandardOpenOption.TRUNCATE_EXISTING);
-                }
+                save(contentBuilder, datasetParsedPath, source);
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
             }
@@ -88,36 +90,31 @@ public class ParseHtml {
 
     }
 
-    private String extractHead(String html) {
-        final Matcher matcher = headPattern.matcher(html);
-        boolean found = matcher.find();
-        if (!found) return null;
-        String head = matcher.group(1);
-        return head;
+    private boolean isNotEmptyOrInvalid(String content) {
+        return !content.isBlank()
+                && !content.toLowerCase().contains("domain name")
+                && !content.toLowerCase().contains("is for sale")
+                && !content.replaceAll("\r", "").replaceAll("\n", "").trim().isEmpty();
     }
 
-    private String extractTitle(Pattern titlePattern, String html) {
-        final Matcher matcher = titlePattern.matcher(html);
-        boolean found = matcher.find();
-        if (!found) return "";
-        String title = matcher.group(1).replaceAll("\r", "").replaceAll("\n", "");
-        if ("<title></title>".equalsIgnoreCase(title)) return null;
-        return title;
-    }
-
-    private List<String> extractMeta(Pattern titlePattern, String html) {
-        List<String> items = new ArrayList<>();
-        final Matcher matcher = titlePattern.matcher(html);
-        while (matcher.find()) {
-            items.add(matcher.group(1).replaceAll("\r", "").replaceAll("\n", ""));
+    private void save(StringBuilder contentBuilder, Path parent, Path source) {
+        try {
+            String content = contentBuilder.toString();
+            if (isNotEmptyOrInvalid(content)) {
+                Files.createDirectories(parent.resolve(source.getParent().getFileName()));
+                Files.write(
+                        parent.resolve(source.getParent().getFileName()).resolve(source.getFileName()),
+                        content.getBytes(StandardCharsets.UTF_8),
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.TRUNCATE_EXISTING);
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
         }
-        return items;
     }
 
     private List<Path> list(Path src) throws IOException {
         List<Path> fileList = new ArrayList<>();
-
-        // Read original dataset file list
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(src)) {
             for (Path path : stream) {
                 if (!Files.isDirectory(path)) {
