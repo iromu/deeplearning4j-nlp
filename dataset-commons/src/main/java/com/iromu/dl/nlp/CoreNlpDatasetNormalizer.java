@@ -1,11 +1,12 @@
-package com.iromu.dl4j.nlp.utils;
+package com.iromu.dl.nlp;
 
-import edu.stanford.nlp.process.TokenizerFactory;
+import edu.stanford.nlp.pipeline.CoreDocument;
+import edu.stanford.nlp.pipeline.CoreSentence;
+import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import lombok.extern.slf4j.Slf4j;
 
-import edu.stanford.nlp.pipeline.*;
-
-import java.util.*;
+import java.util.List;
+import java.util.Properties;
 import java.util.regex.Pattern;
 
 @Slf4j

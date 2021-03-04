@@ -4,17 +4,19 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
+import me.tongfei.progressbar.ProgressBar;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 import reactor.netty.http.client.HttpClient;
 
 import javax.net.ssl.SSLException;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,28 +26,29 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import static com.db.cloud.ai.ParseHtml.list;
+import static com.iromu.dl.nlp.DatasetPath.getRootPath;
 
 @SpringBootApplication
 @Slf4j
 public class ScrapperApplication implements CommandLineRunner {
-
-
-    // /mnt/wd3/datasets/URL Classification/
     public final Path datasetRootPath;
     private final Path datasetOriginalPath;
     private final Path datasetErrorsPath;
-    private final Path datasetParsedPath;
     private final Path datasetCsvPath;
+    private final String path;
     private WebClient webClient;
+    private final AtomicInteger errors = new AtomicInteger(0);
+    private final AtomicInteger skipped = new AtomicInteger(0);
+
 
     public ScrapperApplication() {
-        String path = System.getenv("PATH");
-        if (path == null || path.isBlank())
-            path = System.getProperty("user.home");
+        path = getRootPath();
         datasetRootPath = Paths.get(path, "datasets", "URL Classification/");
         datasetOriginalPath = datasetRootPath.resolve("original");
-        datasetParsedPath = datasetRootPath.resolve("parsed");
         datasetErrorsPath = datasetRootPath.resolve("errors.txt");
         datasetCsvPath = datasetRootPath.resolve("URL Classification.csv");
     }
@@ -62,12 +65,13 @@ public class ScrapperApplication implements CommandLineRunner {
                 .trustManager(InsecureTrustManagerFactory.INSTANCE)
                 .build();
         HttpClient httpClient = HttpClient.create().secure(t -> t.sslContext(sslContext)).followRedirect(true);
-        return WebClient.builder().clientConnector(new ReactorClientHttpConnector(httpClient)).build();
+        ReactorClientHttpConnector connector = new ReactorClientHttpConnector(httpClient);
+        return WebClient.builder().clientConnector(connector).build();
     }
 
     @Override
     public void run(String... args) throws IOException {
-        log.info("EXECUTING : command line runner");
+        log.info("EXECUTING : command line runner. Path " + path);
         Files.createDirectories(datasetOriginalPath);
         this.webClient = createWebClient();
         List<String> errorList = new ArrayList<>();
@@ -84,47 +88,89 @@ public class ScrapperApplication implements CommandLineRunner {
                 log.error(e.getMessage(), e);
             }
         }
-
+        log.info("Errors file read. " + errorList.size());
+        List<Path> dataset = list(datasetOriginalPath);
+        log.info("Existing files read. " + dataset.size());
         String label = "";
-
-        try (BufferedReader br = Files.newBufferedReader(datasetCsvPath)) {
-            String line;
+        List<String> br = Files.readAllLines(datasetCsvPath);
+        long lines = br.size();
+        log.info("Total files to process. " + lines);
+        try (ProgressBar pb = new ProgressBar("Processing", lines)) {
+            //try (BufferedReader br = Files.newBufferedReader(datasetCsvPath)) {
+            //String line;
             String index = "0";
-            while ((line = br.readLine()) != null) {
+            Scheduler scheduler = Schedulers.newBoundedElastic(5, 1000, "ScrapGroup");
+
+            String category = "";
+            for (String line : br) {
+                //while ((line = br.readLine()) != null) {
                 try {
+                    pb.step();
                     String[] values = line.split(",");
                     index = values[0];
-                    if (errorList.contains(index)) continue;
+                    if (errorList.contains(index)) {
+                        continue;
+                    }
                     String url = values[1];
-                    String category = values[2];
+                    category = values[2];
                     if (!category.equals(label)) {
                         label = category;
-                        log.info(category);
+                        pb.setExtraMessage(category);
                     }
 
                     Path outputFilePath = datasetOriginalPath.resolve(category).resolve(index + ".html");
-                    if (!Files.exists(outputFilePath)) {
+                    if (!dataset.contains(outputFilePath)) {
+                        //  if (!Files.exists(outputFilePath)) {
                         String finalIndex = index;
-                        ResponseEntity<String> s = webClient.get()
-                                .uri(url)
-                                .accept(MediaType.TEXT_HTML)
-                                .exchange()
-                                .filter(clientResponse -> clientResponse.statusCode().is2xxSuccessful())
-                                .flatMap(response -> response.toEntity(String.class))
-                                .doOnError(throwable -> {
-                                    error(finalIndex);
-                                }).block(Duration.ofSeconds(10));
-                        saveFile(outputFilePath, category, s);
+
+                        String finalCategory = category;
+                        boolean parallel = false;
+                        if (parallel) {
+                            webClient.get()
+                                    .uri(url)
+                                    .accept(MediaType.TEXT_HTML)
+                                    .exchangeToMono(clientResponse -> {
+                                        if (clientResponse.statusCode().is2xxSuccessful()) {
+                                            return clientResponse.bodyToMono(String.class);
+                                        } else {
+                                            return Mono.error(new Exception());
+                                        }
+                                    })
+                                    .publishOn(scheduler)
+                                    .timeout(Duration.ofSeconds(60))
+                                    .doOnError(throwable -> error(finalIndex))
+                                    .subscribe(s -> saveFile(outputFilePath, finalCategory, s), e -> error(finalIndex));
+                        } else {
+                            String body = webClient.get()
+                                    .uri(url)
+                                    .accept(MediaType.TEXT_HTML)
+                                    .exchangeToMono(clientResponse -> {
+                                        if (clientResponse.statusCode().is2xxSuccessful()) {
+                                            return clientResponse.bodyToMono(String.class);
+                                        } else {
+                                            return Mono.error(new Exception());
+                                        }
+                                    })
+                                    .publishOn(scheduler)
+                                    .timeout(Duration.ofSeconds(60))
+                                    .doOnError(throwable -> error(finalIndex))
+                                    .block(Duration.ofSeconds(60));
+                            saveFile(outputFilePath, category, body);
+                        }
+
+                    } else {
+
                     }
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     error(index);
                 }
             }
         }
+        //  }
+
     }
 
     private void error(String index) {
-        System.out.print(".");
         try {
             Files.write(
                     datasetErrorsPath,
@@ -136,16 +182,16 @@ public class ScrapperApplication implements CommandLineRunner {
         }
     }
 
-    private void saveFile(Path outputFilePath, String category, ResponseEntity<String> s) {
+    private void saveFile(Path outputFilePath, String category, String s) {
         try {
             Files.createDirectories(datasetOriginalPath.resolve(category));
 
             Files.write(
                     outputFilePath,
-                    s.getBody().getBytes(),
+                    s.getBytes(),
                     StandardOpenOption.CREATE,
                     StandardOpenOption.TRUNCATE_EXISTING);
-            System.out.print("*");
+            // System.out.print("*");
         } catch (IOException e) {
             log.error(e.getMessage(), e);
         }

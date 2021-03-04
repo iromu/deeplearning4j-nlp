@@ -1,9 +1,10 @@
 package com.iromu.dl4j.nlp;
 
-import com.iromu.dl4j.nlp.utils.OpenNlpDatasetNormalizer;
+
+import com.iromu.dl.nlp.OpenNlpDatasetNormalizer;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class OpenNlpDatasetNormalizerTest {
 

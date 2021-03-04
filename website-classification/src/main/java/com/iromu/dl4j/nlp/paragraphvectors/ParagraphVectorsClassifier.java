@@ -1,9 +1,9 @@
 package com.iromu.dl4j.nlp.paragraphvectors;
 
 
-import com.iromu.dl4j.nlp.utils.DatasetUtil;
-import com.iromu.dl4j.nlp.utils.LabelSeeker;
-import com.iromu.dl4j.nlp.utils.MeansBuilder;
+import com.iromu.dl.nlp.DatasetMeta;
+import com.iromu.dl.nlp.LabelSeeker;
+import com.iromu.dl.nlp.MeansBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.deeplearning4j.models.embeddings.inmemory.InMemoryLookupTable;
 import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
@@ -23,6 +23,8 @@ import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.List;
 
+import static com.iromu.dl.nlp.DatasetPath.getRootPath;
+
 /**
  * Based on https://github.com/eclipse/deeplearning4j-examples/blob/master/dl4j-examples/src/main/java/org/deeplearning4j/examples/nlp/paragraphvectors/ParagraphVectorsClassifier.java
  * <p>
@@ -38,14 +40,15 @@ public class ParagraphVectorsClassifier {
     private ParagraphVectors paragraphVectors;
     private FileLabelAwareIterator iterator;
     private TokenizerFactory tokenizerFactory;
-    private final DatasetUtil.DatasetMeta datasetMeta;
+    private final DatasetMeta datasetMeta;
     private final String MODEL_NAME;
 
-    public ParagraphVectorsClassifier(String MODEL_NAME, DatasetUtil.DatasetMeta datasetMeta) throws URISyntaxException {
-        OUTPUT_FOLDER = Paths.get(System.getProperty("user.home"), "datasets", "website-classification-models").toString();
+    public ParagraphVectorsClassifier(String MODEL_NAME, DatasetMeta datasetMeta) throws URISyntaxException {
+        OUTPUT_FOLDER = Paths.get(getRootPath(), "datasets", "website-classification-models").toString();
         this.MODEL_NAME = MODEL_NAME;
         this.datasetMeta = datasetMeta;
     }
+
 
     void train() throws IOException {
 

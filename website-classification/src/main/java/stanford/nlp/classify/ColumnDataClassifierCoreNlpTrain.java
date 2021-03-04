@@ -1,7 +1,7 @@
 package stanford.nlp.classify;
 
-import com.iromu.dl4j.nlp.utils.CoreNlpDatasetNormalizer;
-import com.iromu.dl4j.nlp.utils.DatasetNormalizer;
+import com.iromu.dl.nlp.CoreNlpDatasetNormalizer;
+import com.iromu.dl.nlp.DatasetNormalizer;
 
 public class ColumnDataClassifierCoreNlpTrain {
 
@@ -10,8 +10,8 @@ public class ColumnDataClassifierCoreNlpTrain {
 
     public static void main(String[] args) throws Exception {
         ColumnDataClassifierUtils columnDataClassifierTrain = new ColumnDataClassifierUtils(NORMALIZER, MODEL_NAME);
-        columnDataClassifierTrain.trainClassifier();
-        columnDataClassifierTrain.testClassifier();
+        columnDataClassifierTrain.target.trainClassifier();
+        columnDataClassifierTrain.target.testClassifier();
     }
 
 }

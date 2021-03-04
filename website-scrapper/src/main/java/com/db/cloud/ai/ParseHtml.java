@@ -1,6 +1,7 @@
 package com.db.cloud.ai;
 
 import lombok.extern.slf4j.Slf4j;
+import me.tongfei.progressbar.ProgressBar;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -12,6 +13,8 @@ import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.iromu.dl.nlp.DatasetPath.getRootPath;
+
 @Slf4j
 public class ParseHtml {
     public final Path datasetRootPath;
@@ -20,9 +23,7 @@ public class ParseHtml {
     private final Path datasetMetaPath;
 
     public ParseHtml() {
-        String path = System.getenv("PATH");
-        if (path == null || path.isBlank())
-            path = System.getProperty("user.home");
+        String path = getRootPath();
         datasetRootPath = Paths.get(path, "datasets", "URL Classification/");
         datasetOriginalPath = datasetRootPath.resolve("original");
         datasetParsedPath = datasetRootPath.resolve("parsed");
@@ -33,52 +34,18 @@ public class ParseHtml {
         new ParseHtml().run();
     }
 
-    private void run() throws IOException {
-        List<Path> dataset = list(datasetOriginalPath);
-
-        for (Path source : dataset) {
-            try {
-
-                String html = Files.readString(source);
-                if (html.replaceAll("\r", "").replaceAll("\n", "").trim().isEmpty()) continue;
-                StringBuilder contentBuilder = new StringBuilder();
-                StringBuilder metaBuilder = new StringBuilder();
-
-                Document doc = Jsoup.parse(html.toLowerCase());
-                String title = doc.title();
-                if (title != null) {
-                    if (title.toLowerCase().contains("is for sale")) continue;
-                    if (title.toLowerCase().contains("domain name")) continue;
-                    contentBuilder.append(title);
-                    metaBuilder.append(title).append("\n");
+    public static List<Path> list(Path src) throws IOException {
+        List<Path> fileList = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(src)) {
+            for (Path path : stream) {
+                if (!Files.isDirectory(path)) {
+                    fileList.add(path);
+                } else {
+                    fileList.addAll(list(path));
                 }
-
-                Elements metaTags = doc.getElementsByTag("meta");
-
-                for (Element metaTag : metaTags) {
-                    if (metaTag.hasAttr("charset")) continue;
-                    if (metaTag.hasAttr("http-equiv")) continue;
-                    if ("viewport".equalsIgnoreCase(metaTag.attr("name"))) continue;
-                    String metaName = metaTag.attr("name");
-                    if (metaName.toLowerCase().contains("description") || metaName.toLowerCase().contains("keywords")) {
-                        log.warn(metaTag.toString());
-                        metaBuilder.append(metaTag.attr("content")).append("\n");
-                    }
-                    contentBuilder.append("\n").append(metaTag.toString());
-                }
-                save(metaBuilder, datasetMetaPath, source);
-
-                Element body = doc.body();
-                if (body != null) {
-                    String text = body.text();
-                    contentBuilder.append("\n").append(text);
-                }
-                save(contentBuilder, datasetParsedPath, source);
-            } catch (Exception e) {
-                log.error(e.getMessage(), e);
             }
         }
-
+        return fileList;
     }
 
     private boolean isNotEmptyOrInvalid(String content) {
@@ -104,17 +71,57 @@ public class ParseHtml {
         }
     }
 
-    private List<Path> list(Path src) throws IOException {
-        List<Path> fileList = new ArrayList<>();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(src)) {
-            for (Path path : stream) {
-                if (!Files.isDirectory(path)) {
-                    fileList.add(path);
-                } else {
-                    fileList.addAll(list(path));
+    private void run() throws IOException {
+        List<Path> dataset = list(datasetOriginalPath);
+
+        try (ProgressBar pb = new ProgressBar("Parsing", dataset.size())) {
+            log.info("Parsing");
+            for (Path source : dataset) {
+                try {
+                    pb.step();
+                    String html = Files.readString(source);
+                    if (html.replaceAll("\r", "").replaceAll("\n", "").trim().isEmpty()) continue;
+                    StringBuilder contentBuilder = new StringBuilder();
+                    StringBuilder metaBuilder = new StringBuilder();
+
+                    Document doc = Jsoup.parse(html.toLowerCase());
+
+                    String title = doc.title();
+                    if (title != null) {
+                        if (title.toLowerCase().contains("is for sale")) continue;
+                        if (title.toLowerCase().contains("domain name")) continue;
+                        contentBuilder.append(title);
+                        metaBuilder.append(title).append("\n");
+                    }
+
+                    Elements metaTags = doc.getElementsByTag("meta");
+
+                    for (Element metaTag : metaTags) {
+                        if (metaTag.hasAttr("charset")) continue;
+                        if (metaTag.hasAttr("http-equiv")) continue;
+                        if ("viewport".equalsIgnoreCase(metaTag.attr("name"))) continue;
+                        String metaName = metaTag.attr("name");
+                        if (metaName.toLowerCase().contains("description") ||
+                                metaName.toLowerCase().contains("keywords") ||
+                                metaName.toLowerCase().contains("title")) {
+                            if (metaTag.hasAttr("content")) {
+                                metaBuilder.append(metaTag.attr("content")).append("\n");
+                                contentBuilder.append("\n").append(metaTag.attr("content"));
+                            }
+                        }
+                    }
+                    save(metaBuilder, datasetMetaPath, source);
+
+                    Element body = doc.body();
+                    if (body != null) {
+                        String text = body.text();
+                        contentBuilder.append("\n").append(text);
+                    }
+                    save(contentBuilder, datasetParsedPath, source);
+                } catch (Exception e) {
+                    log.error(e.getMessage(), e);
                 }
             }
         }
-        return fileList;
     }
 }

@@ -1,2 +1,6 @@
 server:
   port: 0
+
+logging.level.root: ERROR
+logging.level.com.db.cloud.ai: INFO
+logging.level.reactor.netty.channel: OFF

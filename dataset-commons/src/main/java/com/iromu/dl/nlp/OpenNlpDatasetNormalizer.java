@@ -1,4 +1,4 @@
-package com.iromu.dl4j.nlp.utils;
+package com.iromu.dl.nlp;
 
 import lombok.extern.slf4j.Slf4j;
 import opennlp.tools.lemmatizer.DictionaryLemmatizer;

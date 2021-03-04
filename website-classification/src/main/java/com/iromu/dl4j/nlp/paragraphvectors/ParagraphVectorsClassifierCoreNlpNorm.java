@@ -1,9 +1,14 @@
 package com.iromu.dl4j.nlp.paragraphvectors;
 
 
-import com.iromu.dl4j.nlp.utils.CoreNlpDatasetNormalizer;
-import com.iromu.dl4j.nlp.utils.DatasetUtil;
+import com.iromu.dl.nlp.CoreNlpDatasetNormalizer;
+import com.iromu.dl.nlp.DatasetMeta;
+import com.iromu.dl.nlp.DatasetUtil;
 import lombok.extern.slf4j.Slf4j;
+
+import java.nio.file.Paths;
+
+import static com.iromu.dl.nlp.DatasetPath.getRootPath;
 
 /**
  * @author wantez@gmail.com
@@ -13,7 +18,10 @@ public class ParagraphVectorsClassifierCoreNlpNorm {
     public static final String MODEL_NAME = "ParagraphVectorsClassifierCoreNlpNorm.zip";
 
     public static void main(String[] args) throws Exception {
-        DatasetUtil.DatasetMeta datasetMeta = new DatasetUtil(new CoreNlpDatasetNormalizer()).prepareDataset();
+        DatasetMeta datasetMeta = new DatasetUtil(new CoreNlpDatasetNormalizer(),
+                Paths.get(getRootPath(), "datasets", "URL Classification", "parsed"),
+                Paths.get(getRootPath(), "datasets", "website-classification-workdir")
+        ).prepareDataset();
         ParagraphVectorsClassifier app = new ParagraphVectorsClassifier(MODEL_NAME, datasetMeta);
         app.train();
         app.test();

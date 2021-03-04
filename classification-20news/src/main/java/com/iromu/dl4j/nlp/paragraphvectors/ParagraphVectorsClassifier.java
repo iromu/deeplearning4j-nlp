@@ -1,9 +1,9 @@
 package com.iromu.dl4j.nlp.paragraphvectors;
 
 
-import com.iromu.dl4j.nlp.utils.DatasetUtil;
-import com.iromu.dl4j.nlp.utils.LabelSeeker;
-import com.iromu.dl4j.nlp.utils.MeansBuilder;
+import com.iromu.dl.nlp.DatasetMeta;
+import com.iromu.dl.nlp.LabelSeeker;
+import com.iromu.dl.nlp.MeansBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.deeplearning4j.models.embeddings.inmemory.InMemoryLookupTable;
 import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
@@ -15,13 +15,15 @@ import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreproc
 import org.deeplearning4j.text.tokenization.tokenizerfactory.DefaultTokenizerFactory;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 import org.nd4j.common.primitives.Pair;
-
 import org.nd4j.linalg.api.ndarray.INDArray;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.*;
-import java.util.*;
+import java.nio.file.Paths;
+import java.util.List;
+
+import static com.iromu.dl.nlp.DatasetPath.getRootPath;
 
 /**
  * Based on https://github.com/eclipse/deeplearning4j-examples/blob/master/dl4j-examples/src/main/java/org/deeplearning4j/examples/nlp/paragraphvectors/ParagraphVectorsClassifier.java
@@ -38,11 +40,11 @@ public class ParagraphVectorsClassifier {
     private ParagraphVectors paragraphVectors;
     private FileLabelAwareIterator iterator;
     private TokenizerFactory tokenizerFactory;
-    private DatasetUtil.DatasetMeta datasetMeta;
-    private String MODEL_NAME;
+    private final DatasetMeta datasetMeta;
+    private final String MODEL_NAME;
 
-    public ParagraphVectorsClassifier(String MODEL_NAME, DatasetUtil.DatasetMeta datasetMeta) throws URISyntaxException {
-        OUTPUT_FOLDER = Paths.get(System.getProperty("user.home"), "datasets", "20news-18828-models").toString();
+    public ParagraphVectorsClassifier(String MODEL_NAME, DatasetMeta datasetMeta) throws URISyntaxException {
+        OUTPUT_FOLDER = Paths.get(getRootPath(), "datasets", "20news-18828-models").toString();
         this.MODEL_NAME = MODEL_NAME;
         this.datasetMeta = datasetMeta;
     }
